@@ -2,3 +2,4 @@
 ansible.cfg
 backup
 credentials.yaml
+hosts.ini
