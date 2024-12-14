@@ -1,0 +1,36 @@
+credentials_file_path: (path to creds folder)/credentials
+
+switches:
+  - hostname: (ip)
+    os: junos
+    els: false
+    interfaces: 
+      - interface: ge-0/0/45
+        mode: trunk
+        vlan: 
+  - hostname: (ip) 
+    os: nxos
+    interfaces: 
+    - interface: Ethernet1/1
+      mode: trunk
+      vlan: 1,30-40 # contiguous ranges can be summarized as a dash, non-contiguous should be separated with commas
+
+  - hostname: (ip) 
+    os: nxos
+    interfaces: 
+      - interface: Ethernet1/51
+        mode: access
+        vlan: 1
+      - interface: Ethernet1/51 # both vlan blank and vlan 1 will configure the device in vlan 1 for cisco, leave blank with juniper for default
+        mode: access
+        vlan: 
+  - hostname: (ip) 
+    os: junos
+    els: True
+    interfaces: 
+      - interface: ge-0/0/43
+        mode: access
+        vlan: 
+      - interface: ge-0/0/45
+        mode: access
+        vlan: 

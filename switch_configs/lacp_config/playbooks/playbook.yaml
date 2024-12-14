@@ -1,0 +1,56 @@
+
+- hosts: (ip addr)
+  gather_facts: false
+  vars_files: 
+    - (path to creds folder)/credentials/credentials_nxos.yaml
+  vars: 
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: cisco.nxos.nxos
+
+
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+
+  tasks: 
+    - name: backup current configuration to backups/
+      cisco.nxos.nxos_config: 
+        backup: true
+        backup_options: 
+          dir_path: backups/
+          filename: backup_(ip addr)
+
+    - name: reset default interface Ethernet1/53
+      cisco.nxos.nxos_config: 
+        lines: default interface Ethernet1/53
+    - name: reconfigure as layer2 port
+      cisco.nxos.nxos_config: 
+        lines: switchport
+        parents: interface Ethernet1/53
+    - name: reset default interface Ethernet1/54
+      cisco.nxos.nxos_config: 
+        lines: default interface Ethernet1/54
+    - name: reconfigure as layer2 port
+      cisco.nxos.nxos_config: 
+        lines: switchport
+        parents: interface Ethernet1/54
+
+    - name: configuring LAG with mode active
+      cisco.nxos.nxos_lag_interfaces: 
+        config: 
+          - name: port-channel1
+            members: 
+            - member: Ethernet1/53
+              mode: active
+            - member: Ethernet1/54
+              mode: active
+    - name: configuring Po1 as trunk vlan (vlan nums)
+      cisco.nxos.nxos_config: 
+        lines:
+          - switchport
+ 
+          - switchport mode trunk
+          - switchport trunk allowed vlan (vlan nums)
+          - no shutdown
+        parents: interface Port-Channel1
+
+    

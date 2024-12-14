@@ -1,0 +1,64 @@
+{% for switch in switches %}
+
+- hosts: {{ switch.hostname }}
+  gather_facts: false
+  vars_files: 
+    - {{ credentials_file_path }}/credentials_{{ switch.os }}.yaml
+  vars: 
+{%  if switch.os == "junos" %}
+    ansible_connection: ansible.netcommon.netconf
+    ansible_network_os: junipernetworks.junos.junos
+{% elif switch.os == "nxos" %}
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: cisco.nxos.nxos
+{% endif %}
+
+{%  raw %}
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+{%  endraw %}
+
+{% if switch.os == "nxos" %}
+  tasks: 
+    - name: backup current configuration to backups/
+      cisco.nxos.nxos_config: 
+        backup: true
+        backup_options: 
+          dir_path: backups/
+          filename: backup_{{ switch.hostname }}
+
+{%    for interface in switch.members %}
+    - name: reset default interface {{ interface }}
+      cisco.nxos.nxos_config: 
+        lines: default interface {{ interface }}
+    - name: reconfigure as layer2 port
+      cisco.nxos.nxos_config: 
+        lines: switchport
+        parents: interface {{ interface }}
+{%    endfor %}
+
+    - name: configuring LAG with mode {{ switch.lag_mode }}
+      cisco.nxos.nxos_lag_interfaces: 
+        config: 
+          - name: port-channel{{ switch.channel_num }}
+            members: 
+{%            for interface in switch.members %}
+            - member: {{ interface }}
+              mode: {{ switch.lag_mode }}
+{%            endfor %}
+    - name: configuring Po{{ switch.channel_num }} as {{ switch.port_mode }} vlan {{ switch.vlan }}
+      cisco.nxos.nxos_config: 
+        lines:
+          - switchport
+{%        if switch.port_mode == "trunk" %} 
+          - switchport mode trunk
+          - switchport trunk allowed vlan {{ switch.vlan }}
+{%        elif switch.port_mode == "access" %}
+          - switchport access vlan {{ switch.vlan }}
+{%        endif %}
+          - no shutdown
+        parents: interface Port-Channel{{ switch.channel_num }}
+{% endif %}
+{% endfor %}
+
+    

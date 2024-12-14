@@ -1,0 +1,122 @@
+{%for switch in switches %}
+
+{# specifies the hosts that this task will apply to, uses the os variable in the YAML to 
+   identify the credentials file  #}
+- hosts: {{ switch.hostname }}
+  gather_facts: false
+  vars_files: 
+    - {{ credentials_file_path }}/credentials_{{ switch.os }}.yaml
+  vars: 
+  {# switch username and password loaded as raw text for the playbook to fill in with the vault parameters found on decryption #}
+{%  if switch.os == "junos" %}
+  ansible_connection: ansible.netcommon.netconf
+    ansible_network_os: junipernetworks.junos.junos
+{%  elif switch.os == "nxos" %}
+  ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: cisco.nxos.nxos
+{%  endif %}
+{%  raw %}
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+
+{%  endraw %}
+{# applies to NX OS specific commands #}
+{%if switch.os == "nxos" %}
+  tasks: 
+      - name: backup current config
+        cisco.{{ switch.os }}.{{ switch.os }}_config: 
+          backup: true
+          backup_options: 
+            dir_path: backups/
+            filename: backup_{{ switch.hostname }}
+
+{%    for section in switch.interfaces %}
+{# sets the interface to default factory settings #}
+      - name: reset default interface {{ section.interface }}
+        cisco.nxos.nxos_config: 
+          lines: default interface {{ section.interface }} 
+
+{# configures the interface as access/trunk with the specified vlan as defined in vars.yaml #} 
+      - name: configure access/trunk VLANs on interface {{ section.interface }} 
+        cisco.nxos.nxos_config: 
+          lines: 
+            - switchport
+{%          if section.mode == "trunk" %}
+            - switchport mode trunk
+{%          if section.vlan == None %}
+            - switchport trunk allowed vlan all
+{%          else %}
+            - switchport trunk allowed vlan {{ section.vlan }}
+{%          endif %}
+{%          elif section.mode == "access" and section.vlan != None %}
+            - switchport access vlan {{ section.vlan }}
+{%          elif section.mode == "access" and section.vlan == None or section.vlan == 1%}
+            - switchport access vlan 1
+{%          endif %}
+            - no shutdown
+          parents: interface {{ section.interface }}
+{% endfor %}
+          save_when: changed
+
+
+{%elif switch.os == "junos" and not switch.els%}
+  tasks: 
+{% for section in switch.interfaces %}
+{%   if section.mode == "access" %}
+    - name: configuring access port {{ section.interface }} in vlan {{ section.vlan }}
+      junipernetworks.junos.junos_l2_interfaces: 
+        config: 
+          - name: {{ section.interface }}
+            enhanced_layer: false
+            unit: 0
+            access: 
+              vlan: {{ section.vlan }}
+{% elif section.mode == "trunk" %}
+    - name: configuring trunk port {{ section.interface }} with allowed vlans {{ section.vlan }}
+      junipernetworks.junos.junos_l2_interfaces: 
+        config: 
+          - name: {{ section.interface }}
+            enhanced_layer: false
+            unit: 0 
+            trunk: 
+              allowed_vlans: {{ section.vlan }}
+{%     endif %}
+        state: replaced
+{%   endfor %}
+
+{%- elif switch.os == "junos" and switch.els %}
+  tasks: 
+{% for section in switch.interfaces %}
+{%   if section.mode == "access" and section.vlan != None and section.vlan != 1%}
+    - name: configuring access port {{ section.interface }} in vlan {{ section.vlan }}
+      junipernetworks.junos.junos_l2_interfaces: 
+        config: 
+          - name: {{ section.interface }}
+            enhanced_layer: true
+            unit: 0
+            access: 
+              vlan: {{ section.vlan }}
+{%  elif section.mode == "access" and section.vlan == None or section.vlan == 1%}
+    - name: configuring access port {{ section.interface }} in vlan default
+      junipernetworks.junos.junos_l2_interfaces: 
+        config: 
+          - name: {{ section.interface }}
+            enhanced_layer: true
+            unit: 0
+            access: 
+              vlan: default
+{% elif section.mode == "trunk" %}
+    - name: configuring trunk port {{ section.interface }} with allowed vlans {{ section.vlan }}
+      junipernetworks.junos.junos_l2_interfaces: 
+        config: 
+          - name: {{ section.interface }}
+            enhanced_layer: false
+            unit: 0 
+            trunk: 
+              allowed_vlans: {{ section.vlan }}
+{%     endif %}
+        state: replaced
+{%   endfor %}
+{%- endif%}
+{% endfor %}
+        

@@ -1,0 +1,14 @@
+- name: generate playbook and config file
+  gather_facts: false
+  hosts: localhost
+  vars: 
+    params: 
+      files: 
+        - vars.yaml 
+  tasks: 
+    - name: load yaml config file
+      include_vars: vars.yaml
+    - name: creating playbook.yaml in ./playbook/
+      template: 
+        src: jinja_templates/playbook.j2
+        dest: ./playbooks/playbook.yaml
