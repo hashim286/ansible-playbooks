@@ -1,0 +1,85 @@
+# to use this, copy the docker.service, docker.socket, and containerd.service files from a working docker device located under /usr/lib/systemd/system/
+# place these files into a directory called configs, or rename directory below under the "copy file to remote servers" task, change path to your liking
+# create a vault with the username, password, and sudo password then use the --ask-vault-pass flag when calling the playbook, alternatively just directly substitute
+# secrets as the variables (not recommended)
+# define a hosts file with the server IPs to use, alternatively copy below YAML and substitute each IP in hosts field 
+
+- hosts: (hostname) 
+  gather_facts: false
+  vars_files: 
+    - (secrets file))
+  vars: 
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+    ansible_become_password: "{{ sudo_password }}"
+
+  tasks: 
+    - name: stop any active docker service
+      become: true
+      ansible.builtin.systemd_service: 
+        name: docker
+        state: stopped 
+        enabled: false
+
+    - name: stop any active containerd service
+      become: true
+      ansible.builtin.systemd_service: 
+        name: containerd
+        state: stopped 
+        enabled: false
+
+    - name: copy docker tar to remote servers
+      ansible.builtin.copy: 
+        src: (path to docker binary folder on current system)
+        dest: (path to copy to on remote system)
+      
+    - name: copy config file to remote servers
+      ansible.builtin.copy: 
+        src: (path to docker and containerd service files on current)
+        dest: (path to copy to on remote) 
+
+    - name: unzip docker tar
+      ansible.builtin.command: tar -xzvf ~/docker-27.3.1.tgz
+      args: 
+        chdir: (location docker tar is copied to)
+    
+    - name: copy to /usr/bin
+      ansible.builtin.raw: sudo cp (path to docker folder)/docker/* /usr/bin/
+      become: true
+      
+    - name: move docker service directory for systemctl
+      become: true
+      ansible.builtin.command: cp (config file path)/configs/docker.service /etc/systemd/system/
+
+    - name: move docker socket to directory for systemctl
+      become: true
+      ansible.builtin.command: cp (config file path)/configs/docker.socket /etc/systemd/system/
+
+    - name: move containerd to directory for systemctl
+      become: true
+      ansible.builtin.command: cp (config file path)/configs/containerd.service /etc/systemd/system/
+
+    - name: add docker group if not present
+      become: true
+      ansible.builtin.group: 
+        name: docker
+        state: present
+
+    - name: reload daemon
+      become: true
+      ansible.builtin.systemd_service: 
+        daemon_reload: true
+
+    - name: enable docker
+      become: true
+      ansible.builtin.systemd_service: 
+        name: docker
+        enabled: true
+        state: started
+    
+    - name: check 
+      ansible.builtin.command: systemctl status docker
+      register: output
+
+    - name: print output
+      debug: msg="{{ output.stdout_lines }}"
