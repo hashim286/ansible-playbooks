@@ -1,0 +1,12 @@
+- hosts: servers
+  gather_facts: false
+  vars_files: 
+    - (secrets path))
+  vars: 
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}"
+  
+  tasks: 
+    - name: add alias to bashrc
+      ansible.builtin.raw: echo "alias ip='ip -c'" >> ./.bashrc
+
