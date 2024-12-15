@@ -72,6 +72,17 @@
 {%elif switch.os == "junos" and not switch.els%}
   tasks: 
 {% for section in switch.interfaces %}
+    - name: change interface state
+      junipernetworks.junos.junos_interfaces: 
+        config: 
+          - name: {{ section.interface }}
+            description: {{ section.description }}
+{%          if switch.revert %}
+            enabled: false
+{%          else %}
+            enabled: true
+{%          endif %}
+
 {%   if section.mode == "access" %}
     - name: configuring access port {{ section.interface }} in vlan {{ section.vlan }}
       junipernetworks.junos.junos_l2_interfaces: 
@@ -91,7 +102,11 @@
             trunk: 
               allowed_vlans: {{ section.vlan }}
 {%     endif %}
+{%      if switch.revert %}
+        state: deleted    
+{%      else %}
         state: replaced
+{%      endif %}
 {%   endfor %}
 
 {%- elif switch.os == "junos" and switch.els %}
