@@ -9,3 +9,5 @@ vars.yaml
 playbook.yaml
 vars.yaml
 backups/
+vars.yaml
+playbook.yaml
