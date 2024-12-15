@@ -6,3 +6,6 @@ hosts.ini
 secrets.yaml
 credentials/
 vars.yaml
+playbook.yaml
+vars.yaml
+backups/
