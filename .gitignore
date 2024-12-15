@@ -5,9 +5,8 @@ credentials.yaml
 hosts.ini
 secrets.yaml
 credentials/
-vars.yaml
-playbook.yaml
-vars.yaml
 backups/
 vars.yaml
 playbook.yaml
+*/vars.yaml
+*/playbook.yaml
