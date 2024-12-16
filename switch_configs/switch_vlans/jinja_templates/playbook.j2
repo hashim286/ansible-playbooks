@@ -1,10 +1,10 @@
 {%for switch in switches %}
 
-{# specifies the hosts that this task will apply to, uses the os variable in the YAML to 
-   identify the credentials file  #}
+{# set hostname for task as the hostname parameter in the YAML #}
 - hosts: {{ switch.hostname }}
   gather_facts: false
   vars_files: 
+{# uses the file path in the YAML #}
     - {{ credentials_file_path }}/credentials_{{ switch.os }}.yaml
   vars: 
 {# sets connection type depending on the switch os #}
@@ -15,15 +15,18 @@
     ansible_connection: ansible.netcommon.network_cli
     ansible_network_os: cisco.{{ switch.os }}.{{ switch.os }}
 {%  endif %}
+
 {# switch username and password loaded as raw text for the playbook to fill in with the vault parameters found on decryption #}
 {%  raw %}
     ansible_user: "{{ username }}"
     ansible_password: "{{ password }}"
 
 {%  endraw %}
-{# applies to NX OS specific commands #}
+
+{# applies to NX OS and IOS #}
 {%if switch.os == "nxos" or switch.os == "ios"%}
   tasks: 
+{# creates the backups directory and saves the current config with the hostname #}
       - name: create backups directory
         ansible.builtin.file: 
           path: ./switch_configs/switch_vlans/backups
@@ -37,7 +40,10 @@
             dir_path: ./switch_configs/switch_vlans/backups/
             filename: backup_{{ switch.hostname }}
 
+{# iterates through the interfaces part of the YAML #}
 {%    for section in switch.interfaces %}
+
+{# checks if the revert variable is set to True, changes the task description accordingly  #}
 {%      if not switch.revert %}
       - name: enable {{ section.interface }}, set description
 {%      else %}
@@ -46,12 +52,21 @@
         cisco.{{ switch.os }}.{{ switch.os }}_interfaces: 
           config: 
             - name: {{ section.interface }}
+{# if device os is nxos, set layer 2 explicitly on the interface as default is l3 #}
+{%            if switch.os == "nxos" %}
               mode: layer2 
+{%            endif %}
+{%            if switch.revert %}
+              enabled: false
+{%            else %}
               enabled: true
-{%            if switch.os == "nxos" and not switch.revert %}
+{%            endif%}
+{# if we're not reverting the change, apply the description provided #}
+{%            if not switch.revert %}
               description: {{ section.description }}
 {%            endif %}
 
+{# if the change is being reverted, replace the current config to be a layer 2 port and not shutdown, otherwise merge it normally #}
 {%-       if switch.revert %}
           state: replaced
 {%-       else %}
