@@ -1,0 +1,48 @@
+credentials_file_path: (example)
+
+switches:
+# ios
+  - hostname: (hostname)
+    els: 
+    revert: True
+    os: ios
+    interfaces: 
+      - interface: GigabitEthernet0/9
+        description: test ansible
+        mode: access
+        vlan: 20  
+      - interface: GigabitEthernet0/10
+        description: test ansible 2
+        mode: trunk
+        vlan: 10,20,69 
+
+# nxos
+  - hostname: (hostname)
+    revert: (only needs to be set to true if you want to undo a change)
+    os: nxos
+    interfaces: 
+      - interface: GigabitEthernet0/9
+        description: test ansible
+        mode: access
+        vlan: 20  
+  
+# junos
+  - hostname: (hostname)
+    els: False
+    revert: False
+    os: junos
+    interfaces: 
+      - interface: ge-0/0/1
+        description: test ansible
+        mode: access
+        vlan: 20
+
+  - hostname: (hostname)
+    els: True
+    revert: False
+    os: junos
+    interfaces: 
+      - interface: ge-0/0/1
+        description: test ansible
+        mode: access
+        vlan: 20

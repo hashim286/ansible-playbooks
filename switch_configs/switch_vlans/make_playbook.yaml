@@ -6,6 +6,10 @@
       files: 
         - vars.yaml 
   tasks: 
+    - name: create necessary directories
+      ansible.builtin.file: 
+        path: ./playbooks
+        state: directory
     - name: load yaml config file
       include_vars: vars.yaml
     - name: creating playbook.yaml in ./playbook/
