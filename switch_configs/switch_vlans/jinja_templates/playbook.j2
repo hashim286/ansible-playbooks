@@ -24,27 +24,46 @@
 {# applies to NX OS specific commands #}
 {%if switch.os == "nxos" or switch.os == "ios"%}
   tasks: 
+      - name: create backups directory
+        ansible.builtin.file: 
+          path: ./switch_configs/switch_vlans/backups
+          state: directory
+          recurse: yes
+
       - name: backup current config
         cisco.{{ switch.os }}.{{ switch.os }}_config: 
           backup: true
           backup_options: 
-            dir_path: backups/
+            dir_path: ./switch_configs/switch_vlans/backups/
             filename: backup_{{ switch.hostname }}
 
 {%    for section in switch.interfaces %}
-
+{%      if not switch.revert %}
       - name: enable {{ section.interface }}, set description
+{%      else %}
+      - name: undoing {{ section.interface }}
+{%      endif %}
         cisco.{{ switch.os }}.{{ switch.os }}_interfaces: 
           config: 
             - name: {{ section.interface }}
-              description: {{ section.description }}
+              mode: layer2 
               enabled: true
-{%        if switch.revert %}
-          state: deleted
-{%        else %}
+{%            if switch.os == "nxos" and not switch.revert %}
+              description: {{ section.description }}
+{%            endif %}
+
+{%-       if switch.revert %}
+          state: replaced
+{%-       else %}
           state: merged
-{%        endif %}
+{%-       endif %}
+
+{%      if not switch.revert %}
+
       - name: configure {{ section.interface }} as {{ section.mode }} vlan {{ section.vlan }}
+{%      else %}
+      - name: undoing {{ section.mode }} {{ section.interface }} {{ section.vlan }}
+{%      endif %}
         cisco.{{ switch.os }}.{{ switch.os }}_l2_interfaces:
           config: 
             - name: {{ section.interface }}
@@ -54,20 +73,24 @@
                 vlan: {{ section.vlan }}
 {%            elif section.mode == "trunk" %}
               trunk: 
+{%              if section.vlan ==  "None"   %}
+                allowed_vlans: all
+{%              else%}
                 allowed_vlans: {{ section.vlan }}
-{%            endif                         %}
-{%        if switch.revert  %}
+{%              endif %}
+{%-           endif                         %}
+{%-       if switch.revert  %}
           state: deleted
-{%        else %}
+{%-       else %}
           state: merged
-{%        endif %}
+{%-       endif %}
 
 
 {% endfor %}
 
       - name: save configuration if changed 
         cisco.{{ switch.os }}.{{ switch.os }}_config: 
-          save_when: changed
+          save_when: modified
 
 {%elif switch.os == "junos" and not switch.els%}
   tasks: 
