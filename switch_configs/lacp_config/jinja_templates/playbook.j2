@@ -5,6 +5,7 @@
   vars_files: 
     - {{ credentials_file_path }}/credentials_{{ switch.os }}.yaml
   vars: 
+{# creates differing connection type based on switch os #}
 {%  if switch.os == "junos" %}
     ansible_connection: ansible.netcommon.netconf
     ansible_network_os: junipernetworks.junos.junos
@@ -12,12 +13,11 @@
     ansible_connection: ansible.netcommon.network_cli
     ansible_network_os: cisco.nxos.nxos
 {% endif %}
-
 {%  raw %}
     ansible_user: "{{ username }}"
     ansible_password: "{{ password }}"
 {%  endraw %}
-
+{# section for nxos switch #}
 {% if switch.os == "nxos" %}
   tasks: 
     - name: backup current configuration to backups/
@@ -26,39 +26,60 @@
         backup_options: 
           dir_path: backups/
           filename: backup_{{ switch.hostname }}
-
+{# deletes any existing port-channel with same number #}
+    - name: delete int port-channel {{ switch.channel_num }} 
+      cisco.nxos.nxos_config: 
+        lines: no interface port-channel {{ switch.channel_num }} 
 {%    for interface in switch.members %}
+{# resets participating interfaces to default configuration and sets it as layer 2 port with portfast #}
     - name: reset default interface {{ interface }}
       cisco.nxos.nxos_config: 
         lines: default interface {{ interface }}
     - name: reconfigure as layer2 port
       cisco.nxos.nxos_config: 
-        lines: switchport
+        lines:
+        - switchport
+        - no shutdown
+        - description {{ switch.description }} 
+{% 	    if switch.port_mode == "trunk" %}
+        - spanning-tree port type edge trunk
+{%  	    elif switch.port_mode == "access" %} 
+        - spanning-tree port type edge
+{%  	    endif %} 
         parents: interface {{ interface }}
 {%    endfor %}
 
+{# creates a LAG with the mode specified in YAML file, uses the same channel defined #}
     - name: configuring LAG with mode {{ switch.lag_mode }}
       cisco.nxos.nxos_lag_interfaces: 
         config: 
           - name: port-channel{{ switch.channel_num }}
             members: 
 {%            for interface in switch.members %}
-            - member: {{ interface }}
-              mode: {{ switch.lag_mode }}
+              - member: {{ interface }}
+                mode: {{ switch.lag_mode }}
 {%            endfor %}
+
+{# configures port-channel interface to use the switchport configurations defined in yaml #} 
     - name: configuring Po{{ switch.channel_num }} as {{ switch.port_mode }} vlan {{ switch.vlan }}
       cisco.nxos.nxos_config: 
         lines:
-          - switchport
-{%        if switch.port_mode == "trunk" %} 
-          - switchport mode trunk
-          - switchport trunk allowed vlan {{ switch.vlan }}
-{%        elif switch.port_mode == "access" %}
-          - switchport access vlan {{ switch.vlan }}
-{%        endif %}
-          - no shutdown
+        - switchport
+        - description {{ switch.description }} LAG
+{%      if switch.port_mode == "trunk" %} 
+        - switchport mode trunk
+        - switchport trunk allowed vlan {{ switch.vlan }}
+        - spanning-tree port type edge trunk
+{%      elif switch.port_mode == "access" %}
+        - switchport access vlan {{ switch.vlan }}
+        - spanning-tree port type edge
+{%      endif %}
+        - no shutdown
         parents: interface Port-Channel{{ switch.channel_num }}
 {% endif %}
+    - name: save configuration 
+      cisco.nxos.nxos_config: 
+        save_when: modified
 {% endfor %}
 
     
