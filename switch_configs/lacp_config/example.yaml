@@ -1,0 +1,14 @@
+credentials_file_path: (path to credentials folder)/credentials
+
+switches:
+  - hostname: (hostname) 
+    os: nxos
+    members: 
+      - Ethernet1/56
+      - Ethernet1/59
+    channel_num: 4
+    description: (description)
+    lag_mode: "on"
+    port_mode: trunk
+    vlan: 1,100,101
+
