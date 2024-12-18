@@ -1,170 +1,72 @@
-{%for switch in switches %}
-
-{# specifies the hosts that this task will apply to, uses the os variable in the YAML to 
-   identify the credentials file  #}
-- hosts: {{ switch.hostname }}
+{% for switch in switches %}
+- hosts: {{ switch.hostname }} 
   gather_facts: false
   vars_files: 
-    - {{ credentials_file_path }}/credentials_{{ switch.os }}.yaml
+  - {{ credentials_file_path }}/credentials_{{ switch.os }}.yaml
   vars: 
-{# sets connection type depending on the switch os #}
-{%  if switch.os == "junos" %}
+  {#- connection type is set based on the switch's OS, if junos it uses junos, if it is a cisco device it uses the devices OS name from the vars.yaml file #} 
+{%- if switch.os == "junos" %} 
     ansible_connection: ansible.netcommon.netconf
     ansible_network_os: junipernetworks.junos.junos
-{%  elif switch.os == "nxos" or switch.os =="ios" %}
+{%- elif switch.os == "nxos" or switch.os == "ios" %} 
     ansible_connection: ansible.netcommon.network_cli
-    ansible_network_os: cisco.{{ switch.os }}.{{ switch.os }}
-{%  endif %}
-{# switch username and password loaded as raw text for the playbook to fill in with the vault parameters found on decryption #}
-{%  raw %}
-    ansible_user: "{{ username }}"
-    ansible_password: "{{ password }}"
+    ansible_network_os: cisco.{{ switch.os }}.{{ switch.os }} 
+{%- endif %} 
+{#-username and password fields are filled from the credentials file #}
+{%- raw %} 
+    ansible_user: "{{ username }}" 
+    ansible_password: "{{ password }}" 
+{%- endraw %} 
+{#-applies to NXOS and IOS devices for now #} 
+{%-if switch.os == "nxos" or switch.os == "ios" %} 
 
-{%  endraw %}
-{# applies to NX OS specific commands #}
-{%if switch.os == "nxos" or switch.os == "ios"%}
   tasks: 
-      - name: create backups directory
-        ansible.builtin.file: 
-          path: ./switch_configs/switch_vlans/backups
-          state: directory
-          recurse: yes
+    - name: create directory for backup config if not present
+      ansible.builtin.file: 
+        path: switch_configs/switch_vlans/backups
+        state: directory 
+        recurse: yes 
+{# saves the current configuration with the switch's hostname or IP address in the directory created above #}     
+    - name: backup the current saved configuration 
+      cisco.{{ switch.os }}.{{ switch.os }}_config: 
+        backup: true
+        backup_options: 
+          dir_path: switch_configs/switch_vlans/backups/
+          filename: backup_{{ switch.hostname }} 
+{#-iterate through interfaces described in vars.yaml #} 
+{%- for section in switch.interfaces %} 
+{%-   if not switch.revert %} 
 
-      - name: backup current config
-        cisco.{{ switch.os }}.{{ switch.os }}_config: 
-          backup: true
-          backup_options: 
-            dir_path: ./switch_configs/switch_vlans/backups/
-            filename: backup_{{ switch.hostname }}
-
-{%    for section in switch.interfaces %}
-{%      if not switch.revert %}
-      - name: enable {{ section.interface }}, set description
-{%      else %}
-      - name: undoing {{ section.interface }}
-{%      endif %}
-        cisco.{{ switch.os }}.{{ switch.os }}_interfaces: 
-          config: 
-            - name: {{ section.interface }}
-              mode: layer2 
-              enabled: true
-{%            if switch.os == "nxos" and not switch.revert %}
-              description: {{ section.description }}
-{%            endif %}
-
-{%-       if switch.revert %}
-          state: replaced
-{%-       else %}
-          state: merged
-{%-       endif %}
-
-{%      if not switch.revert %}
-
-      - name: configure {{ section.interface }} as {{ section.mode }} vlan {{ section.vlan }}
-{%      else %}
-      - name: undoing {{ section.mode }} {{ section.interface }} {{ section.vlan }}
-{%      endif %}
-        cisco.{{ switch.os }}.{{ switch.os }}_l2_interfaces:
-          config: 
-            - name: {{ section.interface }}
-              mode: {{ section.mode }}
-{%            if section.mode == "access" %}
-              access: 
-                vlan: {{ section.vlan }}
-{%            elif section.mode == "trunk" %}
-              trunk: 
-{%              if section.vlan ==  "None"   %}
-                allowed_vlans: all
-{%              else%}
-                allowed_vlans: {{ section.vlan }}
-{%              endif %}
-{%-           endif                         %}
-{%-       if switch.revert  %}
-          state: deleted
-{%-       else %}
-          state: merged
-{%-       endif %}
-
-
-{% endfor %}
-
-      - name: save configuration if changed 
-        cisco.{{ switch.os }}.{{ switch.os }}_config: 
-          save_when: modified
-
-{%elif switch.os == "junos" and not switch.els%}
-  tasks: 
-{% for section in switch.interfaces %}
-    - name: change interface state
-      junipernetworks.junos.junos_interfaces: 
+    - name: enable {{ section.interface }} and set description to {{ section.description }} 
+      cisco.{{ switch.os }}.{{ switch.os }}_interfaces: 
         config: 
-          - name: {{ section.interface }}
-            description: {{ section.description }}
-{%          if switch.revert %}
-            enabled: false
-{%          else %}
-            enabled: true
-{%          endif %}
-
-{%   if section.mode == "access" %}
-    - name: configuring access port {{ section.interface }} in vlan {{ section.vlan }}
-      junipernetworks.junos.junos_l2_interfaces: 
+        - name: {{ section.interface }} 
+          enabled: true
+          description: {{ section.description }} 
+{%-   elif switch.revert %} 
+    - name: undoing {{ section.interface }}
+      cisco.{{ switch.os }}.{{ switch.os }}_interfaces: 
         config: 
-          - name: {{ section.interface }}
-            enhanced_layer: false
-            unit: 0
-            access: 
-              vlan: {{ section.vlan }}
-{% elif section.mode == "trunk" %}
-    - name: configuring trunk port {{ section.interface }} with allowed vlans {{ section.vlan }}
-      junipernetworks.junos.junos_l2_interfaces: 
-        config: 
-          - name: {{ section.interface }}
-            enhanced_layer: false
-            unit: 0 
-            trunk: 
-              allowed_vlans: {{ section.vlan }}
-{%     endif %}
-{%      if switch.revert %}
-        state: deleted    
-{%      else %}
+        - name: {{ section.interface }}
+          enabled: false
+{#- ends the if statement to check for the revert parameter #} 
+{%-   endif %} 
+{%        if switch.os == "nxos" %}
+          mode: layer2
+{#-ends the if statement to check if nxos is the os mode and use mode: layer 2, ignore otherwise #}
+{%-       endif %} 
+{%-     if switch.revert %} 
         state: replaced
-{%      endif %}
-{%   endfor %}
+{%-     else %} 
+        state: merged
+{# ends another statement to check for revert parameter and apply the configuration block accordingly #} 
+{%-     endif %} 
 
-{%- elif switch.os == "junos" and switch.els %}
-  tasks: 
-{% for section in switch.interfaces %}
-{%   if section.mode == "access" and section.vlan != None and section.vlan != 1%}
-    - name: configuring access port {{ section.interface }} in vlan {{ section.vlan }}
-      junipernetworks.junos.junos_l2_interfaces: 
-        config: 
-          - name: {{ section.interface }}
-            enhanced_layer: true
-            unit: 0
-            access: 
-              vlan: {{ section.vlan }}
-{%  elif section.mode == "access" and section.vlan == None or section.vlan == 1%}
-    - name: configuring access port {{ section.interface }} in vlan default
-      junipernetworks.junos.junos_l2_interfaces: 
-        config: 
-          - name: {{ section.interface }}
-            enhanced_layer: true
-            unit: 0
-            access: 
-              vlan: default
-{% elif section.mode == "trunk" %}
-    - name: configuring trunk port {{ section.interface }} with allowed vlans {{ section.vlan }}
-      junipernetworks.junos.junos_l2_interfaces: 
-        config: 
-          - name: {{ section.interface }}
-            enhanced_layer: false
-            unit: 0 
-            trunk: 
-              allowed_vlans: {{ section.vlan }}
-{%     endif %}
-        state: replaced
-{%   endfor %}
-{%- endif%}
-{% endfor %}
-        
+{# ends the interface loop #} 
+{%- endfor %}     
+
+{#-ends if statement to check for switch os #} 
+{%-endif %} 
+{#-ends the hosts loop #} 
+{%-endfor %}  
+
