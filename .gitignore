@@ -12,3 +12,5 @@ playbook.yaml
 */playbook.yaml
 
 example.cfg
+*.swp
+*backup*
