@@ -1,0 +1,75 @@
+{%- for device in devices %} 
+!
+hostname {{ device.hostname }}
+!
+{%-for vlan in device.vlans %} 
+!
+vlan {{ vlan.vlan }}
+{%- if vlan.name != none %} 
+  name {{ vlan.name }}
+
+{%- if vlan.remove %} 
+no vlan {{ vlan.vlan }} 
+{%- endif %} 
+{%- endif %}
+
+!
+{%-endfor %}
+!
+!
+!
+!
+{%-for interface in device.interfaces %}
+
+!
+interface {{ interface.interface }}
+
+ {%- if interface.enabled %} 
+
+ {%-if interface.description != None %}
+
+ description {{ interface.description }}
+ {%-endif %}
+
+ {%-if interface.mode == "access" %}
+     
+ switchport mode access
+ switchport access vlan {{ interface.vlan }}
+ spanning-tree portfast
+ {%-elif interface.mode == "trunk" %} 
+ switchport mode trunk 
+ spanning-tree portfast trunk
+ {%-if interface.vlan != none %} 
+ switchport trunk allowed vlan {{  interface.vlan }} 
+ {%-endif %} 
+ load-interval 30 
+ switchport nonegotiate
+ no shutdown 
+ 
+ {%-endif %} 
+
+ {%-if interface.channel_num != none and interface.channel_mode != none %}
+
+ channel-group {{ interface.channel_num }} mode {{ interface.channel_mode }} 
+ {%-endif %} 
+
+ {%-elif not interface.enabled %} 
+ load-interval 30 
+ shutdown
+
+ {%-endif %} 
+
+{%-endfor %} 
+!
+interface Vlan1
+ no ip address
+ no ip route-cache
+!
+{%- for field in device.mgmt %} 
+interface Vlan{{ field.vlan }} 
+ ip address {{ field.address }}
+ no ip route-cache
+!
+ip default-gateway {{ field.gateway }} 
+{%- endfor %} 
+{% endfor %} 
