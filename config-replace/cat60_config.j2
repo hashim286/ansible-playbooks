@@ -22,9 +22,9 @@ no vlan {{ vlan.vlan }}
 {%-for interface in device.interfaces %}
 
 !
+{%- if interface.enabled %} 
 interface {{ interface.interface }}
 
- {%- if interface.enabled %} 
 
  {%-if interface.description != None %}
 
@@ -42,21 +42,28 @@ interface {{ interface.interface }}
  {%-if interface.vlan != none %} 
  switchport trunk allowed vlan {{  interface.vlan }} 
  {%-endif %} 
+ {%-endif %} 
  load-interval 30 
- switchport nonegotiate
+ {%-if interface.mode != none %} 
+ {%-endif %}
+
  no shutdown 
  
- {%-endif %} 
 
  {%-if interface.channel_num != none and interface.channel_mode != none %}
 
  channel-group {{ interface.channel_num }} mode {{ interface.channel_mode }} 
  {%-endif %} 
 
- {%-elif not interface.enabled %} 
- load-interval 30 
- shutdown
-
+{%-elif not interface.enabled %} 
+interface {{ interface.interface }}
+ no switchport mode 
+ no channel-group
+ no switchport access vlan 
+ no description
+ no switchport trunk allowed vlan 
+ no spanning-tree portfast
+ shutdown 
  {%-endif %} 
 
 {%-endfor %} 
