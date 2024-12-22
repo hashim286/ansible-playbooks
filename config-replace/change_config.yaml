@@ -10,6 +10,18 @@
     ansible_user: "{{ username }}"
     ansible_password: "{{ password }}" 
   tasks:
+   - name: create backups directory
+     ansible.builtin.file:
+       path: backups 
+       state: directory
+
+   - name: backup current config
+     cisco.ios.ios_config:
+       backup: true
+       backup_options:
+         dir_path: backups/
+         filename: backup_cat60
+
    - name: creating playbook.yaml in ./playbook/
      template: 
        src: /home/hashim/ansible-playbooks/config-replace/cat60_config.j2
