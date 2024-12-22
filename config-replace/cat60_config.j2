@@ -34,10 +34,12 @@ interface {{ interface.interface }}
  {%-if interface.mode == "access" %}
      
  switchport mode access
+ no switchport trunk allowed vlan 
  switchport access vlan {{ interface.vlan }}
  spanning-tree portfast
  {%-elif interface.mode == "trunk" %} 
  switchport mode trunk 
+ no switchport access vlan 
  spanning-tree portfast trunk
  {%-if interface.vlan != none %} 
  switchport trunk allowed vlan {{  interface.vlan }} 
@@ -58,7 +60,9 @@ interface {{ interface.interface }}
 {%-elif not interface.enabled %} 
 interface {{ interface.interface }}
  no switchport mode 
+{%- if "Port" not in interface.interface %} 
  no channel-group
+{%- endif %} 
  no switchport access vlan 
  no description
  no switchport trunk allowed vlan 
