@@ -1,0 +1,24 @@
+- hosts: cat60
+  gather_facts: false
+  ignore_errors: true
+  vars_files: 
+    - /home/hashim/ansible-playbooks/credentials/credentials_ios.yaml
+    - vars.yaml
+  vars: 
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: cisco.ios.ios
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}" 
+  tasks:
+   - name: creating playbook.yaml in ./playbook/
+     template: 
+       src: /home/hashim/ansible-playbooks/config-replace/cat60_config.j2
+       dest: /home/hashim/ansible-playbooks/config-replace/cat60_config
+   - name: place new configuration on device
+     cisco.ios.ios_config: 
+       diff_against: intended
+       intended_config: config-replace/cat60_config
+       src: "/home/hashim/ansible-playbooks/config-replace/cat60_config.j2"
+   - name: load yaml config file
+     include_vars: vars.yaml
+
