@@ -3,10 +3,10 @@
 {# set hostname for task as the hostname parameter in the YAML #}
 - hosts: {{ switch.hostname }}
   gather_facts: false
-  vars_files:
+  vars_files: 
 {# uses the file path in the YAML #}
     - {{ credentials_file_path }}/credentials_{{ switch.os }}.yaml
-  vars:
+  vars: 
 {# sets connection type depending on the switch os #}
 {%  if switch.os == "junos" %}
     ansible_connection: ansible.netcommon.netconf
@@ -17,26 +17,26 @@
 {%  endif %}
 
 {# switch username and password loaded as raw text for the playbook to fill in with the vault parameters found on decryption #}
-{%  raw %}
-    ansible_user: "{{ username }}"
+{%  raw %}          
+              ansible_user: "{{ username }}"
     ansible_password: "{{ password }}"
 
 {%  endraw %}
 
 {# applies to NX OS and IOS #}
 {%if switch.os == "nxos" or switch.os == "ios"%}
-  tasks:
+  tasks: 
 {# creates the backups directory and saves the current config with the hostname #}
       - name: create backups directory
-        ansible.builtin.file:
+        ansible.builtin.file: 
           path: ./switch_configs/switch_vlans/backups
           state: directory
           recurse: yes
 
       - name: backup current config
-        cisco.{{ switch.os }}.{{ switch.os }}_config:
+        cisco.{{ switch.os }}.{{ switch.os }}_config: 
           backup: true
-          backup_options:
+          backup_options: 
             dir_path: ./switch_configs/switch_vlans/backups/
             filename: backup_{{ switch.hostname }}
 
@@ -49,18 +49,11 @@
 {%      else %}
       - name: undoing {{ section.interface }}
 {%      endif %}
-        cisco.{{ switch.os }}.{{ switch.os }}_interfaces:
-          config:
+        cisco.{{ switch.os }}.{{ switch.os }}_interfaces: 
+          config: 
             - name: {{ section.interface }}
-{# if device os is nxos, set layer 2 explicitly on the interface as default is l3 #}
-{%            if switch.os == "nxos" %}
               mode: layer2 
-{%            endif %}
-{%            if switch.revert %}
-              enabled: false
-{%            else %}
               enabled: true
-{%            endif%}
 {# if we're not reverting the change, apply the description provided #}
 {%            if not switch.revert %}
               description: {{ section.description }}
@@ -73,6 +66,7 @@
           state: merged
 {%-       endif %}
 
+{# check for revert True, if not then we run config normally, if so then we use a different task description and delete the block #}
 {%      if not switch.revert %}
 
       - name: configure {{ section.interface }} as {{ section.mode }} vlan {{ section.vlan }}
@@ -80,16 +74,18 @@
       - name: undoing {{ section.mode }} {{ section.interface }} {{ section.vlan }}
 {%      endif %}
         cisco.{{ switch.os }}.{{ switch.os }}_l2_interfaces:
-          config:
+          config: 
             - name: {{ section.interface }}
               mode: {{ section.mode }}
+{# checks for access or trunk mode in the YAML #}	
 {%            if section.mode == "access" %}
-              access:
+              access: 
                 vlan: {{ section.vlan }}
 {%            elif section.mode == "trunk" %}
               trunk:
+{# if the trunk allowed vlan section is left blank, we add it as a blank section which allows all vlans on the trunk, otherwise we only add that vlan #}
 {%              if section.vlan ==  "None"   %}
-                allowed_vlans: all
+                allowed_vlans:
 {%              else%}
                 allowed_vlans: {{ section.vlan }}
 {%              endif %}
@@ -102,17 +98,21 @@
 
 
 {% endfor %}
-
-      - name: save configuration if changed
-        cisco.{{ switch.os }}.{{ switch.os }}_config:
+{# saves the configuration after the change to back up NVRAM #}
+      - name: save configuration if changed 
+        cisco.{{ switch.os }}.{{ switch.os }}_config: 
           save_when: modified
 
+{# if the switch os is junos, we use the junos libraries to configure the interfaces #}  
 {%elif switch.os == "junos" and not switch.els%}
   tasks:
+{# iterates through the interfaces section of the YAML #} 
 {% for section in switch.interfaces %}
+
+{# sets interface to be enabled or disabled depending on the revert variable #} 
     - name: change interface state
-      junipernetworks.junos.junos_interfaces:
-        config:
+      junipernetworks.junos.junos_interfaces: 
+        config: 
           - name: {{ section.interface }}
             description: {{ section.description }}
 {%          if switch.revert %}
@@ -121,65 +121,72 @@
             enabled: true
 {%          endif %}
 
-{%   if section.mode == "access" %}
+{%    if section.mode == "access" %}
+{# checks for access or trunk port #} 
     - name: configuring access port {{ section.interface }} in vlan {{ section.vlan }}
-      junipernetworks.junos.junos_l2_interfaces:
-        config:
+      junipernetworks.junos.junos_l2_interfaces: 
+        config: 
           - name: {{ section.interface }}
             enhanced_layer: false
             unit: 0
-            access:
+            access: 
               vlan: {{ section.vlan }}
 {% elif section.mode == "trunk" %}
     - name: configuring trunk port {{ section.interface }} with allowed vlans {{ section.vlan }}
-      junipernetworks.junos.junos_l2_interfaces:
-        config:
+      junipernetworks.junos.junos_l2_interfaces: 
+        config: 
           - name: {{ section.interface }}
             enhanced_layer: false
-            unit: 0
-            trunk:
+            unit: 0 
+            trunk: 
               allowed_vlans: {{ section.vlan }}
 {%     endif %}
+
+{# deletes or replaces the described config based on the revert variable #} 
 {%      if switch.revert %}
-        state: deleted
+        state: deleted    
 {%      else %}
         state: replaced
 {%      endif %}
 {%   endfor %}
 
+{# for some junos switches, they use ELS for configuration which is added as a flag in the YAML and uses a boolean in the ansible YAML #} 
 {%- elif switch.os == "junos" and switch.els %}
-  tasks:
+  tasks: 
 {% for section in switch.interfaces %}
+{# if mode is access and the vlan is not left blank or at 1, we can configure the access vlan normally but if access vlan is left blank or it is 1, we use the default VLAN (this is super specific to the use case and not really general, that's why you put it here) #} 
 {%   if section.mode == "access" and section.vlan != None and section.vlan != 1%}
     - name: configuring access port {{ section.interface }} in vlan {{ section.vlan }}
-      junipernetworks.junos.junos_l2_interfaces:
-        config:
+      junipernetworks.junos.junos_l2_interfaces: 
+        config: 
           - name: {{ section.interface }}
             enhanced_layer: true
             unit: 0
-            access:
+            access: 
               vlan: {{ section.vlan }}
-{%  elif section.mode == "access" and section.vlan == None or section.vlan == 1%}
+{# if vlan is left blank or is 1, we configure it as access vlan default #} 	     
+{%  elif section.mode == "access" and section.vlan == "None" or section.vlan == 1%}
     - name: configuring access port {{ section.interface }} in vlan default
-      junipernetworks.junos.junos_l2_interfaces:
-        config:
+      junipernetworks.junos.junos_l2_interfaces: 
+        config: 
           - name: {{ section.interface }}
             enhanced_layer: true
             unit: 0
-            access:
+            access: 
               vlan: default
+{# if it's a trunk, we can just configure it with its trunk vlans #} 	      
 {% elif section.mode == "trunk" %}
     - name: configuring trunk port {{ section.interface }} with allowed vlans {{ section.vlan }}
-      junipernetworks.junos.junos_l2_interfaces:
-        config:
+      junipernetworks.junos.junos_l2_interfaces: 
+        config: 
           - name: {{ section.interface }}
             enhanced_layer: false
-            unit: 0
-            trunk:
+            unit: 0 
+            trunk: 
               allowed_vlans: {{ section.vlan }}
 {%     endif %}
         state: replaced
 {%   endfor %}
 {%- endif%}
 {% endfor %}
-
+        
