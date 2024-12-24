@@ -3,7 +3,9 @@ hostname {{ device.hostname }}
 
         {%- for vlan in device.vlans %} 
 vlan {{ vlan.vlan }}
+{%- if vlan.name != none %} 
  name {{ vlan.name }}
+{%- endif %}
                 {%- if vlan.remove %} 
 no vlan {{ vlan.vlan }}
                 {%- endif %} 
@@ -15,7 +17,6 @@ interface {{ interface.interface }}
         {% if interface.mode == "access" %} 
   switchport access vlan {{ interface.vlan }}
   spanning-tree port type edge
-  no shutdown
         {% elif interface.mode == "trunk" %} 
   switchport mode trunk
   spanning-tree port type edge trunk
@@ -23,9 +24,24 @@ interface {{ interface.interface }}
   switchport trunk allowed vlan {{ interface.vlan }}
                 {% endif %} 
         {% endif %} 
+  {%- if interface.channel_num != none and interface.channel_mode != none %} 
+  channel-group {{ interface.channel_num }} mode {{ interface.channel_mode }}
+  {%- endif %} 
+  {%- if interface.description != none %} 
+  description {{ interface.description }}
+  {%- endif %} 
   no shutdown 
   load-interval 10 
-  
+  {%- elif not interface.enabled %}   
+interface {{ interface.interface }}
+  no spanning-tree port type edge
+  no switchport mode 
+  {% if "Port" not in interface.interface %} 
+  no channel-group
+  {% endif %} 
+  no switchport access vlan 
+  no description
+  no switchport trunk allowed vlan 
 {% endif %} 
 {% endfor %} 
 interface mgmt0
