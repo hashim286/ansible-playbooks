@@ -1,0 +1,12 @@
+- name: generate playbook and config file
+  gather_facts: false
+  hosts: localhost
+    #  vars: 
+    #    params: 
+    #      files: 
+    #        - vars.yaml 
+  tasks: 
+    - name: creating playbook.yaml in ./playbook/
+      template: 
+        src: /home/hashim/Documents/ansible-playbooks/config-replace/vars.j2
+        dest: /home/hashim/Documents/ansible-playbooks/config-replace/vars.yaml
