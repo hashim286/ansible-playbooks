@@ -1,0 +1,49 @@
+credentials_file_path: (credentials folder path)/credentials
+
+devices: 
+# ios
+  - hostname: (hostname) 
+    vlans: 
+     - vlan: 1
+       remove: False
+       name: 
+     - vlan: 10
+       remove: False
+       name: name
+     - vlan: 20
+       remove: False
+       name: name2
+   mgmt: 
+      - address: 192.168.1.4 255.255.255.0
+        gateway: 192.168.1.1
+        vlan: 1
+    os: ios
+    interfaces: 
+      - interface: Port-Channel1
+        description: test interface port-channel
+        enabled: True
+        channel_num: 
+        channel_mode: 
+        mode: trunk
+        vlan: 10,20
+     - interface: GigabitEthernet0/1
+        description: test interface port-channel
+        enabled: True
+        channel_num: 
+        channel_mode: 
+        mode: trunk
+        vlan: 10,20
+      - interface: GigabitEthernet0/2
+        description: test interface port-channel
+        enabled: True
+        channel_num: 
+        channel_mode: 
+        mode: trunk
+        vlan: 10,20
+      - interface: GigabitEthernet0/3
+        description: 
+        enabled: False
+        channel_num: 
+        channel_mode: 
+        mode: 
+        vlan: 
