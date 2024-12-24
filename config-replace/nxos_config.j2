@@ -1,0 +1,39 @@
+{%- for device in devices %} 
+hostname {{ device.hostname }}
+
+        {%- for vlan in device.vlans %} 
+vlan {{ vlan.vlan }}
+ name {{ vlan.name }}
+                {%- if vlan.remove %} 
+no vlan {{ vlan.vlan }}
+                {%- endif %} 
+         {%- endfor %} 
+interface Vlan1
+{% for interface in device.interfaces %} 
+{% if interface.enabled %} 
+interface {{ interface.interface }}
+        {% if interface.mode == "access" %} 
+  switchport access vlan {{ interface.vlan }}
+  spanning-tree port type edge
+  no shutdown
+        {% elif interface.mode == "trunk" %} 
+  switchport mode trunk
+  spanning-tree port type edge trunk
+                {% if interface.vlan != none %} 
+  switchport trunk allowed vlan {{ interface.vlan }}
+                {% endif %} 
+        {% endif %} 
+  no shutdown 
+  load-interval 10 
+  
+{% endif %} 
+{% endfor %} 
+interface mgmt0
+  vrf member management
+  ip address 101.101.62.154/24
+icam monitor scale
+
+line console
+line vty
+boot nxos bootflash:/nxos64-cs.10.3.5.M.bin
+{% endfor %} 
