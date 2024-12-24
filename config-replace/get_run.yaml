@@ -1,0 +1,23 @@
+- hosts: IP
+  gather_facts: false
+  vars_files: 
+    - (path)
+  vars: 
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: cisco.nxos.nxos
+    ansible_user: "{{ username }}" 
+    ansible_password: "{{ password }}" 
+
+  tasks: 
+  - name: create directory for config file
+    ansible.builtin.file: 
+      path: config-replace/backups
+      state: directory
+
+  - name: grab config file
+    cisco.ios.ios_config: 
+      backup: true
+      backup_options: 
+        dir_path: config-replace/backups/ 
+        filename: nxos_config
+
