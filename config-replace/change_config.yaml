@@ -15,10 +15,10 @@
        cmd: pwd
      register: path
    
-   - name: create backups directory
-     ansible.builtin.file:
-       path: backups 
-       state: directory
+       #   - name: create backups directory
+       #     ansible.builtin.file:
+       #       path: backups 
+       #       state: directory
 
          #   - name: backup current config
          #     cisco.nxos.nxos_config:
@@ -31,7 +31,7 @@
    - name: creating sample config in config-replace
      template: 
        src: "{{ path.stdout }}/nxos_config.j2"
-       dest: "{{ path.stdout }}/config-replace/nxos_config"
+       dest: "{{ path.stdout }}/nxos_config"
          #   - name: place new configuration on device
          #     cisco.ios.ios_config: 
          #       diff_against: intended
