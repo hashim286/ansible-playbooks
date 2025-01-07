@@ -1,42 +1,44 @@
+- hosts: nxos
+  gather_facts: false
+  ignore_errors: true
+  vars_files: 
+    - /home/hashim/ansible-playbooks/credentials.yaml
+    - vars.yaml
+      #     
+  vars: 
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: cisco.nxos.nxos
+    ansible_user: "{{ nxos_username }}"
+    ansible_password: "{{ nxos_password }}" 
+
+  tasks:
+  - name: get current file path 
+    ansible.builtin.shell: 
+      cmd: pwd
+    register: path
+ 
+  - name: place new configuration on device
+    cisco.nxos.nxos_config: 
+      src: "{{ path.stdout }}/config-replace/nxos_config.j2"
+    vars: 
+      ansible_persistent_log_messages: True
+
+
 - hosts: localhost
   gather_facts: false
   ignore_errors: true
   vars_files: 
-    #    - /home/hashim/ansible-playbooks/credentials/credentials_ios.yaml
     - vars.yaml
-      #  vars: 
-      #    ansible_connection: ansible.netcommon.network_cli
-      #    ansible_network_os: cisco.ios.ios
-      #    ansible_user: "{{ username }}"
-      #    ansible_password: "{{ password }}" 
-  tasks:
-   - name: get current file path 
-     ansible.builtin.shell: 
-       cmd: pwd
-     register: path
-   
-       #   - name: create backups directory
-       #     ansible.builtin.file:
-       #       path: backups 
-       #       state: directory
 
-         #   - name: backup current config
-         #     cisco.nxos.nxos_config:
-         #       backup: true
-         #       backup_options:
-         #         dir_path: backups/
-         #         filename: backup_nxos
-         #
+  tasks:    
+  - name: get current file path 
+    ansible.builtin.shell: 
+      cmd: pwd
+    register: path
 
-   - name: creating sample config in config-replace
-     template: 
-       src: "{{ path.stdout }}/nxos_config.j2"
-       dest: "{{ path.stdout }}/nxos_config"
-         #   - name: place new configuration on device
-         #     cisco.ios.ios_config: 
-         #       diff_against: intended
-         #       intended_config: config-replace/cat60_config
-         #       src: "/home/hashim/ansible-playbooks/config-replace/cat60_config.j2"
-         #   - name: load yaml config file
-         #     include_vars: vars.yaml
 
+
+  - name: creating sample config in config-replace
+    template: 
+      src: "{{ path.stdout }}/nxos_config.j2"
+      dest: "{{ path.stdout }}/test_nxos_config"

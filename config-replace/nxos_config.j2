@@ -10,46 +10,72 @@ vlan {{ vlan.vlan }}
 no vlan {{ vlan.vlan }}
                 {%- endif %} 
          {%- endfor %} 
-interface Vlan1
-{% for interface in device.interfaces %} 
+
+{%-for interface in device.interfaces %} 
 {% if interface.enabled %} 
 interface {{ interface.interface }}
-        {% if interface.mode == "access" %} 
+        {%-if interface.mode == "access" %} 
+  no switchport trunk allowed vlan
   switchport access vlan {{ interface.vlan }}
   spanning-tree port type edge
-        {% elif interface.mode == "trunk" %} 
+        {%-elif interface.mode == "trunk" %} 
+  no switchport access vlan
   switchport mode trunk
   spanning-tree port type edge trunk
-                {% if interface.vlan != none %} 
+                {%-if interface.vlan != none %} 
   switchport trunk allowed vlan {{ interface.vlan }}
-                {% endif %} 
-        {% endif %} 
-  {%- if interface.channel_num != none and interface.channel_mode != none %} 
-  channel-group {{ interface.channel_num }} mode {{ interface.channel_mode }}
-  {%- endif %} 
-  {%- if interface.description != none %} 
+                {%-endif %} 
+        {%-endif %} 
+{%- if interface.description != none %} 
   description {{ interface.description }}
-  {%- endif %} 
+{%- endif %} 
   no shutdown 
-  load-interval 10 
-  {%- elif not interface.enabled %}   
+
+{%- if interface.channel_num != none and interface.channel_mode != none %} 
+  channel-group {{ interface.channel_num }} force mode {{ interface.channel_mode }}
+{%- else %}
+
+  load-interval 10
+{%- endif %} 
+{%- if interface.tengtx %}
+
+  media-type 10g-tx
+{%-elif not interface.tengtx and "port" not in interface.interface %}
+
+  no media-type 10g-tx
+{%-endif %}
+
+{%-elif not interface.enabled %}   
 interface {{ interface.interface }}
   no spanning-tree port type edge
   no switchport mode 
-  {% if "Port" not in interface.interface %} 
+{%-if "Port" not in interface.interface %} 
   no channel-group
-  {% endif %} 
+{%-endif %} 
   no switchport access vlan 
   no description
   no switchport trunk allowed vlan 
-{% endif %} 
-{% endfor %} 
+{%-endif %} 
+{%-endfor %} 
+
+{#
 interface mgmt0
   vrf member management
-  ip address 101.101.62.154/24
+{%for item in device.mgmt %}
+  ip address {{ item.address }}
+{% endfor %}
+
+{% for item in device.mgmt %}
+vrf context management
+  ip route 0.0.0.0/0 {{ item.gateway}}
+
+  
+{% endfor %}
+
+ #}
 icam monitor scale
 
 line console
 line vty
-boot nxos bootflash:/nxos64-cs.10.3.5.M.bin
 {% endfor %} 
+end
