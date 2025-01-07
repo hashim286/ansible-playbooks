@@ -1,17 +1,22 @@
-- name: generate playbook and config file
+- hosts: localhost
+  gather_facts: false
+  tasks: 
+    - name: get current directory
+      ansible.builtin.shell: 
+        cmd: pwd
+      register: path
+
+- hosts: localhost 
+  name: generate playbook and config file
   gather_facts: false
   hosts: localhost
-  vars: 
-    params: 
-      files: 
-        - vars.yaml 
   tasks: 
     - name: create necessary directories
       ansible.builtin.file: 
-        path: ./playbooks
+        path: "{{ path.stdout }}/playbooks"
         state: directory
-    - name: load yaml config file
-      include_vars: vars.yaml
+    - name: include vars
+      include_vars: "{{ path.stdout }}/vars.yaml"
     - name: creating playbook.yaml in ./playbook/
       template: 
         src: jinja_templates/playbook.j2
