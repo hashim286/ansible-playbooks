@@ -1,32 +1,5 @@
-- hosts: nxos
-  gather_facts: false
-  ignore_errors: true
-  vars_files: 
-    - /home/hashim/ansible-playbooks/credentials.yaml
-    - vars.yaml
-      #     
-  vars: 
-    ansible_connection: ansible.netcommon.network_cli
-    ansible_network_os: cisco.nxos.nxos
-    ansible_user: "{{ nxos_username }}"
-    ansible_password: "{{ nxos_password }}" 
-
-  tasks:
-  - name: get current file path 
-    ansible.builtin.shell: 
-      cmd: pwd
-    register: path
- 
-  - name: place new configuration on device
-    cisco.nxos.nxos_config: 
-      src: "{{ path.stdout }}/config-replace/nxos_config.j2"
-    vars: 
-      ansible_persistent_log_messages: True
-
-
 - hosts: localhost
   gather_facts: false
-  ignore_errors: true
   vars_files: 
     - vars.yaml
 
@@ -36,9 +9,51 @@
       cmd: pwd
     register: path
 
+  - name: creating sample_configs directory if not present
+    ansible.builtin.file: 
+      path: "{{ path.stdout }}/sample_configs"
+      state: directory
+    
 
-
-  - name: creating sample config in config-replace
+  - name: "creating sample config in {{ path.stdout }}/sample_configs"
     template: 
       src: "{{ path.stdout }}/nxos_config.j2"
-      dest: "{{ path.stdout }}/test_nxos_config"
+      dest: "{{ path.stdout }}/sample_configs/nxos_config"
+
+
+- hosts: (switch name)
+  gather_facts: false
+  vars_files: 
+    - /home/hashim/Documents/ansible-playbooks/credentials.yaml
+    - vars.yaml
+           
+  vars: 
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_network_os: cisco.nxos.nxos
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}" 
+    host: (switch name)
+
+  tasks:  
+  - name: get current file path 
+    ansible.builtin.shell: 
+      cmd: pwd
+    register: path
+
+  - name: backing up current config
+    cisco.nxos.nxos_config: 
+      backup: True
+      backup_options: 
+        dir_path: "{{ path.stdout }}/config-replace/backups"
+        filename: "backup_nxos_{{ host }}"
+
+  - name: place new configuration on device
+    cisco.nxos.nxos_config: 
+      src: "{{ path.stdout }}/config-replace/nxos_config.j2"
+
+
+  - name: save the configuration  
+    cisco.nxos.nxos_config: 
+      save_when: modified
+
+
