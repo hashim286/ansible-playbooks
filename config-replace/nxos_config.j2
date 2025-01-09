@@ -1,6 +1,8 @@
 {%- for device in devices %} 
 hostname {{ device.hostname }}
 
+{%- if device.vlans is not none %}
+
         {%- for vlan in device.vlans %} 
 vlan {{ vlan.vlan }}
 {%- if vlan.name != none %} 
@@ -10,20 +12,28 @@ vlan {{ vlan.vlan }}
 no vlan {{ vlan.vlan }}
                 {%- endif %} 
          {%- endfor %} 
+{%- endif %}
 
 {%-for interface in device.interfaces %} 
 {% if interface.enabled %} 
 interface {{ interface.interface }}
-        {%-if interface.mode == "access" %} 
+{%- if "port" in interface.interface%}
+
+  switchport
+{%- endif%}
+        {%-if interface.mode == "access" and interface.channel_num == none and interface.channel_mode == none %} 
   no switchport trunk allowed vlan
   switchport access vlan {{ interface.vlan }}
   spanning-tree port type edge
-        {%-elif interface.mode == "trunk" %} 
+        {%-elif interface.mode == "trunk" and interface.channel_num == none and interface.channel_mode == none%} 
   no switchport access vlan
   switchport mode trunk
   spanning-tree port type edge trunk
                 {%-if interface.vlan != none %} 
   switchport trunk allowed vlan {{ interface.vlan }}
+                {%- else %}
+
+  no switchport trunk allowed vlan
                 {%-endif %} 
         {%-endif %} 
 {%- if interface.description != none %} 
@@ -47,14 +57,17 @@ interface {{ interface.interface }}
 
 {%-elif not interface.enabled %}   
 interface {{ interface.interface }}
+{%-if "port" not in interface.interface %} 
+  no channel-group
   no spanning-tree port type edge
   no switchport mode 
-{%-if "Port" not in interface.interface %} 
-  no channel-group
-{%-endif %} 
   no switchport access vlan 
   no description
   no switchport trunk allowed vlan 
+{%- elif "port" in interface.interface %}
+
+  no int {{ interface.interface }}
+{%-endif %} 
 {%-endif %} 
 {%-endfor %} 
 
