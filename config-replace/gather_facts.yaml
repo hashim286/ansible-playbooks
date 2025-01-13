@@ -1,0 +1,41 @@
+
+- hosts: 
+  gather_facts: false
+  vars_files: 
+    - /home/hashim/Documents/ansible-playbooks/credentials.yaml
+    - vars.yaml
+           
+  vars: 
+    ansible_connection: httpapi
+    ansible_network_os: cisco.nxos.nxos
+    ansible_user: "{{ username }}"
+    ansible_password: "{{ password }}" 
+    host: 
+
+  tasks:  
+#  - name: get current file path 
+#    ansible.builtin.shell: 
+#      cmd: pwd
+#    register: path
+#
+
+#  - name: pull interface info 
+#    cisco.nxos.nxos_facts: 
+#      gather_subset: min
+#      gather_network_resources: l2_interfaces
+#    register: output
+#
+#  - name: print
+#    debug: 
+#      msg: "{{ ansible_network_resources }}"
+#
+#
+  - name: check interface config
+    cisco.nxos.nxos_facts: 
+      gather_subset: default
+      gather_network_resources: interfaces
+    register: output
+
+  - name: print
+    debug: 
+      msg: "{{ output }}"
