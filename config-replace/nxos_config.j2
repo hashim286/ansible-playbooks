@@ -23,7 +23,10 @@ interface {{ interface.interface }}
 {%- endif%}
         {%-if interface.mode == "access" and interface.channel_num == none and interface.channel_mode == none %} 
   no switchport trunk allowed vlan
+                {%- if interface.vlan is not none %}
+
   switchport access vlan {{ interface.vlan }}
+                {%- endif %} 
   spanning-tree port type edge
         {%-elif interface.mode == "trunk" and interface.channel_num == none and interface.channel_mode == none%} 
   no switchport access vlan
