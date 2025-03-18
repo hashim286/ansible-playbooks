@@ -2,7 +2,6 @@
 ansible.cfg
 backup
 credentials.yaml
-hosts.ini
 secrets.yaml
 credentials/
 backups/
