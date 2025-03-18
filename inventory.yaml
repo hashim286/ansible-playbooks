@@ -1,0 +1,52 @@
+nexus: 
+  hosts: 
+    n9k-1: 
+      ansible_host: host.test.com
+    n9k-2: 
+      ansible_host: host2.test.com
+  vars: 
+    ansible_network_os: cisco.nxos.nxos
+    ansible_password: "{{ nexus_password }}"
+
+catalyst: 
+  hosts: 
+    cat9k-1:
+      ansible_host: host3.test.com
+
+  vars: 
+    ansible_network_os: cisco.ios.ios
+    ansible_password: "{{ catalyst_password }}"
+    ansible_become: true
+    ansible_become_method: enable
+    ansible_become_password: "{{ catalyst_become_password }}" 
+
+cisco_switches: 
+  children: 
+    nexus: 
+    catalyst: 
+  vars: 
+    ansible_connection: ansible.netcommon.network_cli
+    ansible_user: admin
+    vars_files:
+    - credentials.yaml
+
+
+
+juniper: 
+  hosts: 
+    qfx5100: 
+      ansible_host: 1.1.1.1
+    ex3300: 
+      ansible_host: 2.2.2.2
+
+  vars: 
+    ansible_network_os: junipernetworks.junos.junos
+    ansible_connection: ansible.netcommon.netconf
+    ansible_user: root
+    ansible_password: "{{ juniper_password }}"
+
+
+switches: 
+  children: 
+    juniper: 
+    nexus:
